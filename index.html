@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>木造梁部材設計ツール 試作版4（SVG模式図）</title>
+<style>
+:root{--blue:#376a96;--light:#eef5fb;--line:#9aa8b5;--ok:#dff3e4;--ng:#f9dada;--readonly:#e9eef2}
+*{box-sizing:border-box}
+body{font-family:Meiryo,"Yu Gothic",sans-serif;margin:0;background:#f3f5f7;color:#1f2933}
+header{background:var(--blue);color:white;padding:14px 22px}
+header h1{font-size:21px;margin:0 0 4px} header p{margin:0;font-size:12px}
+main{max-width:1050px;margin:18px auto;padding:0 14px 40px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab-button{border:1px solid var(--blue);background:white;color:var(--blue);padding:9px 18px;border-radius:6px 6px 0 0;cursor:pointer;font-weight:bold}
+.tab-button.active{background:var(--blue);color:white}
+.tab{display:none;background:white;border:1px solid #c9d1d8;border-radius:0 8px 8px 8px;padding:18px;box-shadow:0 2px 8px #0001}
+.tab.active{display:block}
+h2{font-size:18px;margin:0 0 14px;border-left:6px solid var(--blue);padding-left:9px}
+h3{font-size:15px;margin:18px 0 8px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(280px,1fr));gap:18px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}}
+table{border-collapse:collapse;width:100%;max-width:650px}
+th,td{border:1px solid var(--line);padding:7px 8px;text-align:left}
+th{background:#e7eff6}
+td.unit{width:86px;color:#465866}
+input,select{font:inherit;width:130px;padding:5px 7px;border:1px solid #9aa8b5;border-radius:3px}
+input[readonly]{background:var(--readonly)}
+button.action{margin:12px 6px 4px 0;padding:8px 16px;border:0;border-radius:4px;background:var(--blue);color:white;cursor:pointer;font-weight:bold}
+button.secondary{background:#687785}
+button.print{background:#287a4b}
+.note{font-size:12px;color:#52616d;margin-top:8px}
+.message{min-height:24px;margin:9px 0;padding:7px 9px;border-radius:4px;display:none}
+.message.error{display:block;background:#fde8e8;color:#8b1e1e;border:1px solid #e3a5a5}
+.message.info{display:block;background:#e7f2ff;color:#184e7a;border:1px solid #a9cce8}
+.result-ok{background:var(--ok)!important;color:#17622f;font-weight:bold;text-align:center}
+.result-ng{background:var(--ng)!important;color:#8b1e1e;font-weight:bold;text-align:center}
+.diagram{margin-top:18px;border:1px solid #c9d1d8;background:#fff;padding:12px;text-align:center}
+.beam{height:4px;background:#222;max-width:410px;margin:38px auto 8px;position:relative}
+.beam:before,.beam:after{content:"△";position:absolute;top:-3px;font-size:24px}.beam:before{left:-8px}.beam:after{right:-8px}
+.loadline{max-width:360px;margin:0 auto;font-size:13px;color:#445}
+.small{font-size:12px}
+
+.overhang-beam {
+    height: 4px;
+    background: #222;
+    max-width: 430px;
+    margin: 42px auto 12px;
+    position: relative;
+}
+.overhang-beam .support {
+    position: absolute;
+    top: -5px;
+    font-size: 24px;
+}
+.overhang-beam .support-mid { left: 38%; }
+.overhang-beam .support-right { right: -8px; }
+.overhang-results {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 15px;
+}
+.overhang-results input { width: 105px; }
+@media (max-width: 850px) {
+    .overhang-results { grid-template-columns: 1fr; }
+}
+
+
+/* 検定画面共通レイアウト */
+.condition-panel {
+    margin: 0 0 18px;
+    padding: 14px;
+    background: #f7fafc;
+    border: 1px solid #c9d1d8;
+    border-radius: 6px;
+}
+.condition-panel h3 {
+    margin: 0 0 10px;
+}
+.condition-table {
+    max-width: none;
+}
+.condition-table td.label {
+    width: 140px;
+    background: #e7eff6;
+    font-weight: bold;
+}
+.condition-table td.value {
+    width: 190px;
+}
+.check-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+.check-card h3 {
+    margin: 0 0 8px;
+}
+.check-card table {
+    max-width: none;
+}
+.check-card input {
+    width: 130px;
+}
+.check-card .unit-cell {
+    width: 90px;
+    color: #465866;
+    white-space: nowrap;
+}
+@media (max-width: 850px) {
+    .check-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* SVG梁モデル図 */
+.beam-model-svg {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    height: auto;
+    margin: 0 auto;
+    overflow: visible;
+}
+.beam-model-svg text {
+    font-family: Meiryo, "Yu Gothic", sans-serif;
+    fill: #1f2933;
+}
+.beam-model-svg .beam-line {
+    stroke: #111827;
+    stroke-width: 5;
+}
+.beam-model-svg .load-line {
+    stroke: #52616d;
+    stroke-width: 1.5;
+}
+.beam-model-svg .point-load {
+    stroke: #0067b8;
+    stroke-width: 3;
+}
+.beam-model-svg .support-shape {
+    fill: white;
+    stroke: #111827;
+    stroke-width: 1.5;
+}
+.beam-model-svg .dimension-line,
+.beam-model-svg .extension-line {
+    stroke: #52616d;
+    stroke-width: 1.3;
+}
+.beam-model-svg .dimension-arrow {
+    fill: #52616d;
+}
+
+@media print{
+ body{background:white}.tabs,.no-print,header p{display:none!important}main{max-width:none;margin:0;padding:0}header{background:white;color:black;padding:0 0 10px}.tab{display:none!important;border:0;box-shadow:none;padding:0}.tab.active{display:block!important}input,select{border:0;background:white!important;appearance:none}.message{display:none!important}
+ @page{size:A4 landscape;margin:12mm}
+}
+</style>
+</head>
+<body>
+<header>
+    <h1>木造梁部材設計ツール 試作版4（SVG模式図）</h1>
+    <p>梁データから単純梁または跳出し梁の荷重入力・検定へ連動</p>
+</header>
+<main>
+<div class="tabs no-print">
+<button class="tab-button active" data-tab="section">1 梁データ</button>
+<button class="tab-button" data-tab="load">2 梁荷重データ</button>
+<button class="tab-button" data-tab="check">3 梁検定（単純梁）</button>
+<button class="tab-button" data-tab="overhangLoad">4 梁荷重データ（跳出し梁）</button>
+<button class="tab-button" data-tab="overhangCheck">5 梁検定（跳出し梁）</button>
+</div>
+
+<section id="section" class="tab active">
+<h2>梁データ</h2>
+<div class="grid">
+<div>
+<h3>断面</h3>
+<table>
+<tr><td>はり幅 B</td><td><input id="B" type="number" step="0.5"></td><td class="unit">cm</td></tr>
+<tr><td>はりせい D</td><td><input id="D" type="number" step="0.5"></td><td class="unit">cm</td></tr>
+<tr><td>ZとIの低減係数 α1</td><td><input id="alpha1" type="number" step="0.1" value="0.8"></td><td></td></tr>
+<tr><td>Aの低減係数 α2</td><td><input id="alpha2" type="number" step="0.1" value="0.8"></td><td></td></tr>
+</table>
+<button class="action" id="calcSection">断面諸定数演算</button>
+<table>
+<tr><th>断面積 A</th><td><input id="A" readonly></td><td class="unit">cm²</td></tr>
+<tr><th>断面係数 Z</th><td><input id="Z" readonly></td><td class="unit">cm³</td></tr>
+<tr><th>断面2次モーメント I</th><td><input id="I" readonly></td><td class="unit">cm⁴</td></tr>
+</table>
+</div>
+<div>
+<h3>材料</h3>
+<table>
+<tr><td>基準曲げ許容応力度 0fb</td><td><input id="fb0" type="number"></td><td class="unit">N/mm²</td></tr>
+<tr><td>長期 Lfb</td><td><input id="Lfb" readonly></td><td class="unit">N/mm²</td></tr>
+<tr><td>中短期 MSfb</td><td><input id="MSfb" readonly></td><td class="unit">N/mm²</td></tr>
+<tr><td>中長期 MLfb</td><td><input id="MLfb" readonly></td><td class="unit">N/mm²</td></tr>
+<tr><td>基準せん断許容応力度 0fs</td><td><input id="fs0" type="number"></td><td class="unit">N/mm²</td></tr>
+<tr><td>長期 Lfs</td><td><input id="Lfs" readonly></td><td class="unit">N/mm²</td></tr>
+<tr><td>中短期 MSfs</td><td><input id="MSfs" readonly></td><td class="unit">N/mm²</td></tr>
+<tr><td>中長期 MLfs</td><td><input id="MLfs" readonly></td><td class="unit">N/mm²</td></tr>
+<tr><td>ヤング係数 E</td><td><input id="E" type="number"></td><td class="unit">kN/cm²</td></tr>
+<tr><td>長期ヤング係数 EL</td><td><input id="EL" readonly></td><td class="unit">kN/cm²</td></tr>
+</table>
+</div>
+</div>
+<div id="msgSection" class="message"></div>
+<button class="action no-print" id="toLoad">荷重入力へ進む（単純梁）</button>
+<button class="action no-print" id="toOverhangLoad">荷重入力へ進む（跳出し梁）</button>
+<button class="action print no-print" onclick="window.print()">この画面を印刷</button>
+</section>
+
+<section id="load" class="tab">
+<h2>梁荷重データ（単純梁）</h2>
+<div class="grid">
+<div>
+<table>
+<tr><td>等分布荷重 W</td><td><input id="W" type="number" value="0"></td><td class="unit">N/m</td></tr>
+<tr><td>集中荷重 P1</td><td><input id="P1" type="number" value="0"></td><td class="unit">N</td></tr>
+<tr><td>作用位置 a1</td><td><input id="a1" type="number" value="0"></td><td class="unit">m</td></tr>
+<tr><td>集中荷重 P2</td><td><input id="P2" type="number" value="0"></td><td class="unit">N</td></tr>
+<tr><td>作用位置 a2</td><td><input id="a2" type="number" value="0"></td><td class="unit">m</td></tr>
+<tr><td>集中荷重 P3</td><td><input id="P3" type="number" value="0"></td><td class="unit">N</td></tr>
+<tr><td>作用位置 a3</td><td><input id="a3" type="number" value="0"></td><td class="unit">m</td></tr>
+<tr><td>スパン L</td><td><input id="L" type="number"></td><td class="unit">m</td></tr>
+<tr><th>集中荷重の重心 a</th><td><input id="centroid" readonly></td><td class="unit">m</td></tr>
+</table>
+<button class="action" id="calcCentroid">集中荷重の重心aの計算</button>
+</div>
+<div class="diagram" aria-label="単純梁荷重模式図">
+    <svg
+        class="beam-model-svg"
+        viewBox="0 0 560 250"
+        role="img"
+        aria-labelledby="simpleBeamTitle simpleBeamDesc">
+
+        <title id="simpleBeamTitle">単純梁の荷重模式図</title>
+        <desc id="simpleBeamDesc">
+            両端支持の単純梁に、等分布荷重Wと集中荷重合計ΣPが作用し、
+            集中荷重点までの距離a、残りの距離L-a、全長Lを示す図。
+        </desc>
+
+        <!-- 集中荷重 ΣP -->
+        <text x="280" y="22" text-anchor="middle" font-size="16">ΣP</text>
+        <line class="point-load" x1="280" y1="30" x2="280" y2="70" />
+        <polygon points="274,65 286,65 280,78" fill="#0067b8" />
+
+        <!-- 等分布荷重 W -->
+        <text x="470" y="49" text-anchor="middle" font-size="16">W</text>
+        <g class="load-line">
+            <line x1="70"  y1="48" x2="70"  y2="78" />
+            <line x1="112" y1="48" x2="112" y2="78" />
+            <line x1="154" y1="48" x2="154" y2="78" />
+            <line x1="196" y1="48" x2="196" y2="78" />
+            <line x1="238" y1="48" x2="238" y2="78" />
+            <line x1="322" y1="48" x2="322" y2="78" />
+            <line x1="364" y1="48" x2="364" y2="78" />
+            <line x1="406" y1="48" x2="406" y2="78" />
+            <line x1="448" y1="48" x2="448" y2="78" />
+            <line x1="490" y1="48" x2="490" y2="78" />
+        </g>
+        <g fill="#52616d">
+            <polygon points="65,70 75,70 70,81" />
+            <polygon points="107,70 117,70 112,81" />
+            <polygon points="149,70 159,70 154,81" />
+            <polygon points="191,70 201,70 196,81" />
+            <polygon points="233,70 243,70 238,81" />
+            <polygon points="317,70 327,70 322,81" />
+            <polygon points="359,70 369,70 364,81" />
+            <polygon points="401,70 411,70 406,81" />
+            <polygon points="443,70 453,70 448,81" />
+            <polygon points="485,70 495,70 490,81" />
+        </g>
+
+        <!-- 梁 -->
+        <line class="beam-line" x1="50" y1="92" x2="510" y2="92" />
+
+        <!-- 支点 -->
+        <polygon class="support-shape" points="50,94 38,116 62,116" />
+        <polygon class="support-shape" points="510,94 498,116 522,116" />
+
+        <!-- 集中荷重点の補助線 -->
+        <line class="extension-line" x1="280" y1="92" x2="280" y2="167" stroke-dasharray="4 4" />
+
+        <!-- a寸法線 -->
+        <line class="extension-line" x1="50" y1="119" x2="50" y2="150" />
+        <line class="dimension-line" x1="50" y1="145" x2="280" y2="145" />
+        <polygon class="dimension-arrow" points="50,145 60,140 60,150" />
+        <polygon class="dimension-arrow" points="280,145 270,140 270,150" />
+        <text x="165" y="138" text-anchor="middle" font-size="15">a</text>
+
+        <!-- L-a寸法線 -->
+        <line class="extension-line" x1="510" y1="119" x2="510" y2="150" />
+        <line class="dimension-line" x1="280" y1="145" x2="510" y2="145" />
+        <polygon class="dimension-arrow" points="280,145 290,140 290,150" />
+        <polygon class="dimension-arrow" points="510,145 500,140 500,150" />
+        <text x="395" y="138" text-anchor="middle" font-size="15">L-a</text>
+
+        <!-- 全長L寸法線 -->
+        <line class="extension-line" x1="50" y1="155" x2="50" y2="205" />
+        <line class="extension-line" x1="510" y1="155" x2="510" y2="205" />
+        <line class="dimension-line" x1="50" y1="197" x2="510" y2="197" />
+        <polygon class="dimension-arrow" points="50,197 60,192 60,202" />
+        <polygon class="dimension-arrow" points="510,197 500,192 500,202" />
+        <text x="280" y="190" text-anchor="middle" font-size="15">L</text>
+    </svg>
+</div>
+</div>
+</div>
+<div id="msgLoad" class="message"></div>
+<button class="action no-print" id="toCheck">梁検定（単純梁）へ進む</button>
+<button class="action print no-print" onclick="window.print()">この画面を印刷</button>
+<button class="action secondary no-print" data-goto="section">戻る</button>
+</section>
+
+<section id="check" class="tab">
+    <h2>梁検定（単純梁）</h2>
+
+    <div class="condition-panel">
+        <h3>検定条件</h3>
+        <table class="condition-table">
+            <tr>
+                <td class="label">荷重の種類</td>
+                <td class="value">
+                    <select id="loadType">
+                        <option value="">選択</option>
+                        <option>長期</option>
+                        <option>中短期</option>
+                        <option>中長期</option>
+                    </select>
+                </td>
+                <td class="label">部材の種類</td>
+                <td class="value">
+                    <select id="memberType">
+                        <option value="">選択</option>
+                        <option>根太</option>
+                        <option>垂木</option>
+                        <option>棟木・母屋</option>
+                        <option>床の小梁</option>
+                        <option>小屋梁</option>
+                        <option>軒桁</option>
+                        <option>床梁・胴差</option>
+                    </select>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="check-layout">
+        <div class="check-card">
+            <h3>算定値</h3>
+            <table>
+                <tr>
+                    <th>項目</th>
+                    <th>算定値</th>
+                    <th>単位</th>
+                </tr>
+                <tr><td>Mmax</td><td><input id="Mmax" readonly></td><td class="unit-cell">N・m</td></tr>
+                <tr><td>Qmax</td><td><input id="Qmax" readonly></td><td class="unit-cell">N</td></tr>
+                <tr><td>σ</td><td><input id="sigma" readonly></td><td class="unit-cell">N/mm²</td></tr>
+                <tr><td>τ</td><td><input id="tau" readonly></td><td class="unit-cell">N/mm²</td></tr>
+                <tr><td>δmax</td><td><input id="delta" readonly></td><td class="unit-cell">cm</td></tr>
+            </table>
+        </div>
+
+        <div class="check-card">
+            <h3>検定</h3>
+            <table>
+                <tr>
+                    <th>項目</th>
+                    <th>許容値</th>
+                    <th>単位</th>
+                    <th>判定</th>
+                </tr>
+                <tr><td>曲げ</td><td><input id="fb" readonly></td><td class="unit-cell">N/mm²</td><td id="judgeBending"></td></tr>
+                <tr><td>せん断</td><td><input id="fs" readonly></td><td class="unit-cell">N/mm²</td><td id="judgeShear"></td></tr>
+                <tr><td>たわみ</td><td><input id="deflectionLimit" readonly></td><td class="unit-cell">cm</td><td id="judgeDeflection"></td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div id="msgCheck" class="message"></div>
+
+    <button class="action" id="calcCheck">応力、たわみ計算 ⇒ 判定</button>
+    <button class="action print no-print" onclick="window.print()">この画面を印刷</button>
+    <button class="action secondary no-print" data-goto="load">戻る</button>
+    <button class="action secondary no-print" id="resetAll">終了（データ消去）</button>
+</section>
+
+<section id="overhangLoad" class="tab">
+    <h2>梁荷重データ（跳出し梁）</h2>
+
+    <div class="grid">
+        <div>
+            <table>
+                <tr>
+                    <td>等分布荷重 W</td>
+                    <td><input id="overhangW" type="number" value="0"></td>
+                    <td class="unit">N/m</td>
+                </tr>
+                <tr>
+                    <td>集中荷重 P</td>
+                    <td><input id="overhangP" type="number" value="0"></td>
+                    <td class="unit">N</td>
+                </tr>
+                <tr>
+                    <td>跳出し部スパン L1</td>
+                    <td><input id="overhangL1" type="number"></td>
+                    <td class="unit">m</td>
+                </tr>
+                <tr>
+                    <td>一般部スパン L2</td>
+                    <td><input id="overhangL2" type="number"></td>
+                    <td class="unit">m</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="diagram" aria-label="跳出し梁荷重模式図">
+    <svg
+        class="beam-model-svg"
+        viewBox="0 0 560 225"
+        role="img"
+        aria-labelledby="overhangBeamTitle overhangBeamDesc">
+
+        <title id="overhangBeamTitle">跳出し梁の荷重模式図</title>
+        <desc id="overhangBeamDesc">
+            左側自由端に集中荷重Pが作用し、梁全体に等分布荷重Wが作用する跳出し梁。
+            跳出し部L1と一般部L2を示す図。
+        </desc>
+
+        <!-- 左側先端の集中荷重 P -->
+        <text x="50" y="22" text-anchor="middle" font-size="16">P</text>
+        <line class="point-load" x1="50" y1="30" x2="50" y2="70" />
+        <polygon points="44,65 56,65 50,78" fill="#0067b8" />
+
+        <!-- 等分布荷重 W -->
+        <text x="470" y="49" text-anchor="middle" font-size="16">W</text>
+        <g class="load-line">
+            <line x1="92"  y1="48" x2="92"  y2="78" />
+            <line x1="134" y1="48" x2="134" y2="78" />
+            <line x1="176" y1="48" x2="176" y2="78" />
+            <line x1="218" y1="48" x2="218" y2="78" />
+            <line x1="260" y1="48" x2="260" y2="78" />
+            <line x1="302" y1="48" x2="302" y2="78" />
+            <line x1="344" y1="48" x2="344" y2="78" />
+            <line x1="386" y1="48" x2="386" y2="78" />
+            <line x1="428" y1="48" x2="428" y2="78" />
+            <line x1="470" y1="48" x2="470" y2="78" />
+        </g>
+        <g fill="#52616d">
+            <polygon points="87,70 97,70 92,81" />
+            <polygon points="129,70 139,70 134,81" />
+            <polygon points="171,70 181,70 176,81" />
+            <polygon points="213,70 223,70 218,81" />
+            <polygon points="255,70 265,70 260,81" />
+            <polygon points="297,70 307,70 302,81" />
+            <polygon points="339,70 349,70 344,81" />
+            <polygon points="381,70 391,70 386,81" />
+            <polygon points="423,70 433,70 428,81" />
+            <polygon points="465,70 475,70 470,81" />
+        </g>
+
+        <!-- 梁 -->
+        <line class="beam-line" x1="50" y1="92" x2="510" y2="92" />
+
+        <!-- 支点 -->
+        <polygon class="support-shape" points="235,94 223,116 247,116" />
+        <polygon class="support-shape" points="510,94 498,116 522,116" />
+
+        <!-- L1寸法線 -->
+        <line class="extension-line" x1="50" y1="119" x2="50" y2="157" />
+        <line class="extension-line" x1="235" y1="119" x2="235" y2="157" />
+        <line class="dimension-line" x1="50" y1="150" x2="235" y2="150" />
+        <polygon class="dimension-arrow" points="50,150 60,145 60,155" />
+        <polygon class="dimension-arrow" points="235,150 225,145 225,155" />
+        <text x="142.5" y="143" text-anchor="middle" font-size="15">L1</text>
+
+        <!-- L2寸法線 -->
+        <line class="extension-line" x1="510" y1="119" x2="510" y2="157" />
+        <line class="dimension-line" x1="235" y1="150" x2="510" y2="150" />
+        <polygon class="dimension-arrow" points="235,150 245,145 245,155" />
+        <polygon class="dimension-arrow" points="510,150 500,145 500,155" />
+        <text x="372.5" y="143" text-anchor="middle" font-size="15">L2</text>
+
+        <!-- 部位名称 -->
+        <text x="142.5" y="190" text-anchor="middle" font-size="15">跳出し部</text>
+        <text x="372.5" y="190" text-anchor="middle" font-size="15">一般部</text>
+    </svg>
+</div>
+</div>
+</div>
+<div id="msgOverhangLoad" class="message"></div>
+
+    <button class="action no-print" id="toOverhangCheck">梁検定（跳出し梁）へ進む</button>
+    <button class="action print no-print" onclick="window.print()">この画面を印刷</button>
+    <button class="action secondary no-print" data-goto="section">戻る</button>
+</section>
+
+<section id="overhangCheck" class="tab">
+    <h2>梁検定（跳出し梁）</h2>
+
+    <div class="condition-panel">
+        <h3>検定条件</h3>
+        <table class="condition-table">
+            <tr>
+                <td class="label">荷重の種類</td>
+                <td class="value">
+                    <select id="overhangLoadType">
+                        <option value="">選択</option>
+                        <option>長期</option>
+                        <option>中短期</option>
+                        <option>中長期</option>
+                    </select>
+                </td>
+                <td class="label">部材の種類</td>
+                <td class="value">
+                    <select id="overhangMemberType">
+                        <option value="">選択</option>
+                        <option>根太</option>
+                        <option>垂木</option>
+                        <option>棟木・母屋</option>
+                        <option>床の小梁</option>
+                        <option>小屋梁</option>
+                        <option>軒桁</option>
+                        <option>床梁・胴差</option>
+                    </select>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="check-layout">
+        <div class="check-card">
+            <h3>跳出し部</h3>
+            <table>
+                <tr>
+                    <th>項目</th>
+                    <th>算定値</th>
+                    <th>単位</th>
+                    <th>許容値</th>
+                    <th>判定</th>
+                </tr>
+                <tr><td>Mmax</td><td><input id="overhangM1" readonly></td><td class="unit-cell">N・m</td><td></td><td></td></tr>
+                <tr><td>Qmax</td><td><input id="overhangQ1" readonly></td><td class="unit-cell">N</td><td></td><td></td></tr>
+                <tr><td>σ</td><td><input id="overhangSigma1" readonly></td><td class="unit-cell">N/mm²</td><td><input id="overhangFb1" readonly></td><td id="overhangJudgeB1"></td></tr>
+                <tr><td>τ</td><td><input id="overhangTau1" readonly></td><td class="unit-cell">N/mm²</td><td><input id="overhangFs1" readonly></td><td id="overhangJudgeS1"></td></tr>
+                <tr><td>δmax</td><td><input id="overhangDelta1" readonly></td><td class="unit-cell">cm</td><td><input id="overhangLimit1" readonly></td><td id="overhangJudgeD1"></td></tr>
+            </table>
+        </div>
+
+        <div class="check-card">
+            <h3>一般部</h3>
+            <table>
+                <tr>
+                    <th>項目</th>
+                    <th>算定値</th>
+                    <th>単位</th>
+                    <th>許容値</th>
+                    <th>判定</th>
+                </tr>
+                <tr><td>Mmax</td><td><input id="overhangM2" readonly></td><td class="unit-cell">N・m</td><td></td><td></td></tr>
+                <tr><td>Qmax</td><td><input id="overhangQ2" readonly></td><td class="unit-cell">N</td><td></td><td></td></tr>
+                <tr><td>σ</td><td><input id="overhangSigma2" readonly></td><td class="unit-cell">N/mm²</td><td><input id="overhangFb2" readonly></td><td id="overhangJudgeB2"></td></tr>
+                <tr><td>τ</td><td><input id="overhangTau2" readonly></td><td class="unit-cell">N/mm²</td><td><input id="overhangFs2" readonly></td><td id="overhangJudgeS2"></td></tr>
+                <tr><td>δmax</td><td><input id="overhangDelta2" readonly></td><td class="unit-cell">cm</td><td><input id="overhangLimit2" readonly></td><td id="overhangJudgeD2"></td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div id="msgOverhangCheck" class="message"></div>
+
+    <button class="action" id="calcOverhang">応力、たわみ計算 ⇒ 判定</button>
+    <button class="action print no-print" onclick="window.print()">この画面を印刷</button>
+    <button class="action secondary no-print" data-goto="overhangLoad">戻る</button>
+    <button class="action secondary no-print" id="resetOverhang">終了（データ消去）</button>
+
+</section>
+
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const num = id => Number.parseFloat($(id).value);
+const blank = id => $(id).value.trim() === '';
+const round2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
+const showMessage = (id,text,type='error') => { const e=$(id); e.textContent=text; e.className=`message ${type}`; };
+const clearMessage = id => { const e=$(id); e.textContent=''; e.className='message'; };
+function showTab(id){
+ document.querySelectorAll('.tab').forEach(e=>e.classList.toggle('active',e.id===id));
+ document.querySelectorAll('.tab-button').forEach(e=>e.classList.toggle('active',e.dataset.tab===id));
+ window.scrollTo(0,0);
+}
+document.querySelectorAll('.tab-button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.goto)));
+
+function calculateSection(){
+ clearMessage('msgSection');
+ const ids=['B','D','alpha1','alpha2'];
+ if(ids.some(id=>blank(id)||!Number.isFinite(num(id)))){showMessage('msgSection','部材幅、部材せいおよび各低減係数に数字を入力してください');return false;}
+ if(ids.some(id=>num(id)===0)){showMessage('msgSection','部材幅、部材せいおよび各低減係数に「0」以外の数字を入力してください');return false;}
+ const B=num('B'),D=num('D'),a1=num('alpha1'),a2=num('alpha2');
+ $('A').value=round2(B*D*a2).toFixed(2);
+ $('Z').value=round2(B*D**2/6*a1).toFixed(2);
+ $('I').value=round2(B*D**3/12*a1).toFixed(2);
+ return true;
+}
+$('calcSection').addEventListener('click',calculateSection);
+function deriveMaterial(source,targets,factors){
+ if(blank(source)){targets.forEach(id=>$(id).value='');return;}
+ const v=num(source); if(!Number.isFinite(v)){showMessage('msgSection','基準許容応力度またはヤング係数に数字を入力してください');targets.forEach(id=>$(id).value='');return;}
+ targets.forEach((id,i)=>$(id).value=round2(v*factors[i]).toFixed(2));
+}
+$('fb0').addEventListener('input',()=>deriveMaterial('fb0',['Lfb','MSfb','MLfb'],[1.1,1.6,1.43]));
+$('fs0').addEventListener('input',()=>deriveMaterial('fs0',['Lfs','MSfs','MLfs'],[1.1,1.6,1.43]));
+$('E').addEventListener('input',()=>deriveMaterial('E',['EL'],[0.5]));
+$('toLoad').addEventListener('click',()=>{
+ clearMessage('msgSection');
+ if(['fb0','fs0','E'].some(id=>blank(id)||!Number.isFinite(num(id)))){showMessage('msgSection','基準許容応力度およびヤング係数に数値を入力してください');return;}
+ if(['A','Z','I'].some(blank)){showMessage('msgSection','「断面諸定数演算」ボタンをクリックしてください');return;}
+ showTab('load');
+});
+
+function loadValues(){return {W:num('W'),P:[num('P1'),num('P2'),num('P3')],a:[num('a1'),num('a2'),num('a3')],L:num('L')}}
+$('calcCentroid').addEventListener('click',()=>{
+ clearMessage('msgLoad');
+ const ids=['P1','P2','P3','a1','a2','a3'];
+ if(ids.some(id=>blank(id)||!Number.isFinite(num(id)))){showMessage('msgLoad','P1～P3 と a1～a3 に数字を入力してください');return;}
+ const {P,a}=loadValues(),sumP=P.reduce((s,v)=>s+v,0);
+ if(sumP===0){showMessage('msgLoad','集中荷重の合計がゼロの場合は計算できません');return;}
+ $('centroid').value=round2(P.reduce((s,v,i)=>s+v*a[i],0)/sumP).toFixed(2);
+});
+$('toCheck').addEventListener('click',()=>{
+ clearMessage('msgLoad');
+ const ids=['W','P1','P2','P3','L'];
+ if(ids.some(id=>blank(id)||!Number.isFinite(num(id)))){showMessage('msgLoad','等分布荷重、集中荷重1～3およびスパンLに数字を入力してください。集中荷重がない場合は「0」を入力してください');return;}
+ const {P,L}=loadValues(),sumP=P.reduce((s,v)=>s+v,0);
+ if(!(L>0)){showMessage('msgLoad','スパンLには0より大きい数字を入力してください');return;}
+ if(sumP!==0 && blank('centroid')){showMessage('msgLoad','「集中荷重の重心aの計算」ボタンをクリックしてください');return;}
+ if(sumP!==0 && num('centroid')>L){showMessage('msgLoad','集中荷重の重心a ≦ スパンL としてください');return;}
+ showTab('check'); updateAllowables();
+});
+
+const deflectionDivisor={
+ '長期':{'根太':300,'垂木':200,'棟木・母屋':200,'床の小梁':300,'小屋梁':200,'軒桁':200,'床梁・胴差':300},
+ '中短期':{'根太':null,'垂木':150,'棟木・母屋':150,'床の小梁':null,'小屋梁':150,'軒桁':150,'床梁・胴差':225},
+ '中長期':{'根太':null,'垂木':200,'棟木・母屋':200,'床の小梁':null,'小屋梁':200,'軒桁':200,'床梁・胴差':300}
+};
+function updateAllowables(){
+ const lt=$('loadType').value,mt=$('memberType').value;
+ const map={長期:['Lfb','Lfs'],中短期:['MSfb','MSfs'],中長期:['MLfb','MLfs']};
+ $('fb').value=map[lt]?$(map[lt][0]).value:''; $('fs').value=map[lt]?$(map[lt][1]).value:'';
+ const div=deflectionDivisor[lt]?.[mt];
+ $('deflectionLimit').value=(div&&Number.isFinite(num('L')))?round2(num('L')/div*100).toFixed(2):'';
+ ['judgeBending','judgeShear','judgeDeflection'].forEach(id=>{$(id).textContent='';$(id).className=''});
+}
+$('loadType').addEventListener('change',updateAllowables); $('memberType').addEventListener('change',updateAllowables);
+function setJudge(id,ok){const e=$(id);e.textContent=ok?'OK':'NG';e.className=ok?'result-ok':'result-ng';}
+$('calcCheck').addEventListener('click',()=>{
+ clearMessage('msgCheck');
+ const lt=$('loadType').value,mt=$('memberType').value;
+ if(!lt){showMessage('msgCheck','荷重の種類を選択してください');return;}
+ if(!mt){showMessage('msgCheck','部材の種類を選択してください');return;}
+ const {W,P,L}=loadValues(),sumP=P.reduce((s,v)=>s+v,0),A=num('A'),Z=num('Z'),I=num('I');
+ let E=lt==='長期'?num('EL'):num('E');
+ if(![W,L,A,Z,I,E].every(Number.isFinite)||L===0||A===0||Z===0||I===0||E===0){showMessage('msgCheck','計算に必要な入力値を確認してください');return;}
+ let a=sumP===0?0:num('centroid'); if(sumP!==0&&!Number.isFinite(a)){showMessage('msgCheck','集中荷重の重心aを計算してください');return;}
+ if(a>L/2)a=L-a;
+ let M,Q,delta;
+ if(W===0){
+   if(sumP===0){showMessage('msgCheck','等分布荷重と集中荷重の両方がゼロです');return;}
+   M=sumP*a*(L-a)/L; Q=sumP*(L-a)/L;
+   delta=sumP*(a*100)*(((L*100)**2-(a*100)**2)**1.5)/(9*Math.sqrt(3)*L*100*(E*100)*I);
+ }else if(sumP===0){
+   M=W*L**2/8; Q=W*L/2;
+   delta=5*(W*1e-2)*(L*100)**4/(384*(E*100)*I);
+ }else{
+   M=W*L**2/8+sumP*a/2+sumP**2*a**2/(2*W*L**2);
+   Q=W*L/2+sumP*(L-a)/L;
+   delta=5*(W*1e-2)*(L*100)**4/(384*(E*100)*I)+sumP*(a*100)*(3*(L*100)**2-4*(a*100)**2)/(48*(E*100)*I);
+ }
+ const sigma=M/Z,tau=1.5*Q/A*1e-2;
+ $('Mmax').value=round2(M).toFixed(2);$('Qmax').value=round2(Q).toFixed(2);$('sigma').value=round2(sigma).toFixed(2);$('tau').value=round2(tau).toFixed(2);$('delta').value=round2(delta).toFixed(2);
+ setJudge('judgeBending',round2(sigma)<=num('fb')); setJudge('judgeShear',round2(tau)<=num('fs'));
+ if(blank('deflectionLimit')){$('judgeDeflection').textContent='対象外';$('judgeDeflection').className='';}else setJudge('judgeDeflection',round2(delta)<=num('deflectionLimit'));
+});
+
+
+// ============================================================
+// 跳出し梁
+// ============================================================
+
+function validateBeamDataForNextStep() {
+    clearMessage('msgSection');
+
+    if (['fb0', 'fs0', 'E'].some(id => blank(id) || !Number.isFinite(num(id)))) {
+        showMessage(
+            'msgSection',
+            '基準許容応力度およびヤング係数に数値を入力してください'
+        );
+        return false;
+    }
+
+    if (['A', 'Z', 'I'].some(blank)) {
+        showMessage(
+            'msgSection',
+            '「断面諸定数演算」ボタンをクリックしてください'
+        );
+        return false;
+    }
+
+    return true;
+}
+
+$('toOverhangLoad').addEventListener('click', () => {
+    if (!validateBeamDataForNextStep()) {
+        return;
+    }
+
+    showTab('overhangLoad');
+});
+
+$('toOverhangCheck').addEventListener('click', () => {
+    clearMessage('msgOverhangLoad');
+
+    const inputIds = [
+        'overhangW',
+        'overhangP',
+        'overhangL1',
+        'overhangL2'
+    ];
+
+    if (inputIds.some(id => blank(id) || !Number.isFinite(num(id)))) {
+        showMessage(
+            'msgOverhangLoad',
+            '等分布荷重、集中荷重およびスパンに数値を入力してください'
+        );
+        return;
+    }
+
+    if (num('overhangW') === 0 && num('overhangP') === 0) {
+        showMessage(
+            'msgOverhangLoad',
+            '等分布荷重または集中荷重のどちらか一方に「0」以外の数値を入力してください'
+        );
+        return;
+    }
+
+    if (num('overhangL1') <= 0 || num('overhangL2') <= 0) {
+        showMessage(
+            'msgOverhangLoad',
+            'スパンL1、L2には0より大きい数値を入力してください'
+        );
+        return;
+    }
+
+    showTab('overhangCheck');
+    updateOverhangAllowables();
+});
+
+function updateOverhangAllowables() {
+    const loadType = $('overhangLoadType').value;
+    const memberType = $('overhangMemberType').value;
+
+    const allowableMap = {
+        '長期': ['Lfb', 'Lfs'],
+        '中短期': ['MSfb', 'MSfs'],
+        '中長期': ['MLfb', 'MLfs']
+    };
+
+    const fbValue = allowableMap[loadType]
+        ? $(allowableMap[loadType][0]).value
+        : '';
+
+    const fsValue = allowableMap[loadType]
+        ? $(allowableMap[loadType][1]).value
+        : '';
+
+    $('overhangFb1').value = fbValue;
+    $('overhangFb2').value = fbValue;
+    $('overhangFs1').value = fsValue;
+    $('overhangFs2').value = fsValue;
+
+    const divisor = deflectionDivisor[loadType]?.[memberType];
+
+    $('overhangLimit1').value = divisor
+        ? round2(num('overhangL1') / divisor * 100).toFixed(2)
+        : '';
+
+    $('overhangLimit2').value = divisor
+        ? round2(num('overhangL2') / divisor * 100).toFixed(2)
+        : '';
+
+    [
+        'overhangJudgeB1',
+        'overhangJudgeS1',
+        'overhangJudgeD1',
+        'overhangJudgeB2',
+        'overhangJudgeS2',
+        'overhangJudgeD2'
+    ].forEach(id => {
+        $(id).textContent = '';
+        $(id).className = '';
+    });
+}
+
+$('overhangLoadType').addEventListener('change', updateOverhangAllowables);
+$('overhangMemberType').addEventListener('change', updateOverhangAllowables);
+
+$('calcOverhang').addEventListener('click', () => {
+    clearMessage('msgOverhangCheck');
+
+    const loadType = $('overhangLoadType').value;
+    const memberType = $('overhangMemberType').value;
+
+    if (!loadType) {
+        showMessage('msgOverhangCheck', '荷重の種類を選択してください');
+        return;
+    }
+
+    if (!memberType) {
+        showMessage('msgOverhangCheck', '部材の種類を選択してください');
+        return;
+    }
+
+    const W = num('overhangW');
+    const P = num('overhangP');
+    const L1 = num('overhangL1');
+    const L2 = num('overhangL2');
+    const A = num('A');
+    const Z = num('Z');
+    const I = num('I');
+    const Evalue = loadType === '長期' ? num('EL') : num('E');
+
+    if (![W, P, L1, L2, A, Z, I, Evalue].every(Number.isFinite)) {
+        showMessage('msgOverhangCheck', '計算に必要な入力値を確認してください');
+        return;
+    }
+
+    let M1;
+    let Q1;
+    let delta1;
+    let M2;
+    let Q2;
+    let delta2;
+
+    if (W === 0) {
+        // 集中荷重のみ
+        M1 = P * L1;
+        Q1 = P;
+        delta1 = (
+            P * (L1 * 100) ** 2 * ((L1 * 100) + (L2 * 100))
+        ) / (
+            3 * (Evalue * 100) * I
+        );
+
+        M2 = 0.5 * P * L1;
+        Q2 = P * L1 / L2;
+        delta2 = (
+            0.0642 * P * (L1 * 100) * (L2 * 100) ** 2
+        ) / (
+            (Evalue * 100) * I
+        );
+    } else {
+        // 等分布荷重、または集中荷重＋等分布荷重
+        M1 = L1 * (W * L1 + 2 * P) / 2;
+        Q1 = W * L1 + P;
+        delta1 = (
+            3 * (W * 1e-2) * (L1 * 100) ** 4
+            + (W * 1e-2) * (L1 * 100) * (L2 * 100)
+                * (4 * (L1 * 100) ** 2 - (L2 * 100) ** 2)
+            + 8 * P * (L1 * 100) ** 2
+                * ((L1 * 100) + (L2 * 100))
+        ) / (
+            24 * (Evalue * 100) * I
+        );
+
+        const X0 = (L2 ** 2 - L1 ** 2) / (2 * L2);
+
+        M2 = (
+            W * L2 * X0 ** 2 - 2 * P * L1 * X0
+        ) / (
+            2 * L2
+        );
+
+        Q2 = W * (L2 - X0) + P * L1 / L2;
+        delta2 = (
+            5 * (W * 1e-2) * (L2 * 100) ** 4
+            - (W * 1e-2) * (L1 * 100) ** 2 * (L2 * 100) ** 2
+            - 24.6528 * P * (L1 * 100) * (L2 * 100) ** 2
+        ) / (
+            384 * (Evalue * 100) * I
+        );
+    }
+
+    const sigma1 = M1 / Z;
+    const tau1 = 1.5 * Q1 / A * 1e-2;
+    const sigma2 = M2 / Z;
+    const tau2 = 1.5 * Q2 / A * 1e-2;
+
+    const resultValues = {
+        overhangM1: M1,
+        overhangQ1: Q1,
+        overhangSigma1: sigma1,
+        overhangTau1: tau1,
+        overhangDelta1: delta1,
+        overhangM2: M2,
+        overhangQ2: Q2,
+        overhangSigma2: sigma2,
+        overhangTau2: tau2,
+        overhangDelta2: delta2
+    };
+
+    Object.entries(resultValues).forEach(([id, value]) => {
+        $(id).value = round2(value).toFixed(2);
+    });
+
+    setJudge(
+        'overhangJudgeB1',
+        round2(sigma1) <= num('overhangFb1')
+    );
+
+    setJudge(
+        'overhangJudgeS1',
+        round2(tau1) <= num('overhangFs1')
+    );
+
+    setJudge(
+        'overhangJudgeB2',
+        round2(sigma2) <= num('overhangFb2')
+    );
+
+    setJudge(
+        'overhangJudgeS2',
+        round2(tau2) <= num('overhangFs2')
+    );
+
+    if (blank('overhangLimit1')) {
+        $('overhangJudgeD1').textContent = '対象外';
+        $('overhangJudgeD1').className = '';
+    } else {
+        setJudge(
+            'overhangJudgeD1',
+            round2(delta1) <= num('overhangLimit1')
+        );
+    }
+
+    if (blank('overhangLimit2')) {
+        $('overhangJudgeD2').textContent = '対象外';
+        $('overhangJudgeD2').className = '';
+    } else {
+        setJudge(
+            'overhangJudgeD2',
+            round2(delta2) <= num('overhangLimit2')
+        );
+    }
+});
+
+$('resetOverhang').addEventListener('click', () => {
+    if (confirm('入力データをすべて消去しますか？')) {
+        location.reload();
+    }
+});
+
+$('resetAll').addEventListener('click',()=>{if(confirm('入力データをすべて消去しますか？'))location.reload();});
+</script>
+</body>
+</html>
