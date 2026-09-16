@@ -1,1 +1,2200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>柱の許容応力度計算</title>
+
+<style>
+
+body{
+    font-family:sans-serif;
+    padding:20px;
+}
+
+table{
+    border-collapse:collapse;
+    border:2px solid #808080;
+    table-layout:fixed;
+    font-size:clamp(10px,0.8vw,16px);
+}
+
+th,
+td{
+    border:1px solid #808080;
+    padding:5px;
+    text-align:center;
+    vertical-align:middle;
+    white-space:nowrap;
+}
+
+input{
+    width:80px;
+}
+
+.result{
+    background:#eaf5ff;
+}
+
+.unit{
+    font-size:0.9em;
+    color:#666;
+}
+
+.table-wrap{
+    overflow-x:auto;
+    margin-bottom:10px;
+}
+
+.tabButtons{
+    margin-bottom:20px;
+}
+
+.tabButtons button{
+    padding:8px 15px;
+    margin-right:5px;
+}
+
+.tabContent{
+    margin-top:20px;
+}
+
+/* デバッグ用 */
+*{
+    outline:1px solid rgba(255,0,0,0.2);
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- タブボタン -->
+<div class="tabButtons">
+
+    <button onclick="showTab('tab1')">
+        01部材データ
+    </button>
+
+    <button onclick="showTab('tab2')">
+        02単位重量
+    </button>
+
+    <button onclick="showTab('tab3')">
+        03水平力
+    </button>
+
+
+</div>
+
+<!-- tab1 -->
+<div id="tab1" class="tabContent">
+<section id="memberSection"> 
+    
+<h2>部材データ</h2>
+
+<table>
+
+<tr>
+    <th></th>
+    <th>1階</th>
+    <th>2階</th>
+    <th>3階</th>
+</tr>
+
+<tr>
+    <td>部材幅B(cm)</td>
+    <td><input id="b1" type="number"></td>
+    <td><input id="b2" type="number"></td>
+    <td><input id="b3" type="number"></td>
+</tr>
+
+<tr>
+    <td>部材せいD(cm)</td>
+    <td><input id="d1" type="number"></td>
+    <td><input id="d2" type="number"></td>
+    <td><input id="d3" type="number"></td>
+</tr>
+
+<tr>
+    <td>座屈長さlk(m)</td>
+    <td><input id="lk1" type="number"></td>
+    <td><input id="lk2" type="number"></td>
+    <td><input id="lk3" type="number"></td>
+</tr>
+
+<tr>
+    <td>断面積A</td>
+    <td><input id="a1" class="result" readonly></td>
+    <td><input id="a2" class="result" readonly></td>
+    <td><input id="a3" class="result" readonly></td>
+</tr>
+
+<tr>
+    <td>断面係数Z</td>
+    <td><input id="z1" class="result" readonly></td>
+    <td><input id="z2" class="result" readonly></td>
+    <td><input id="z3" class="result" readonly></td>
+</tr>
+
+<tr>
+    <td>断面2次モーメントI</td>
+    <td><input id="i1" class="result" readonly></td>
+    <td><input id="i2" class="result" readonly></td>
+    <td><input id="i3" class="result" readonly></td>
+</tr>
+
+<tr>
+    <td>断面2次半径i</td>
+    <td><input id="si1" class="result" readonly></td>
+    <td><input id="si2" class="result" readonly></td>
+    <td><input id="si3" class="result" readonly></td>
+</tr>
+
+<tr>
+    <td>細長比λ</td>
+    <td><input id="lamda1" class="result" readonly></td>
+    <td><input id="lamda2" class="result" readonly></td>
+    <td><input id="lamda3" class="result" readonly></td>
+</tr>
+
+<tr>
+    <td>座屈低減係数η</td>
+    <td><input id="eta1" class="result" readonly></td>
+    <td><input id="eta2" class="result" readonly></td>
+    <td><input id="eta3" class="result" readonly></td>
+</tr>
+
+</table>
+
+<br>
+
+<button id="calcBtn">
+断面諸定数演算
+</button>
+
+<button id="copyBtn">
+1階データコピー
+</button>
+
+</section>
+</div>
+
+<!-- tab2 -->
+<div id="tab2"
+     class="tabContent"
+     style="display:none;">
+
+<section id="unitWeightTab">
+
+<h2>荷重データ</h2>
+
+<h3>
+①屋根、床の単位面積当たりの重量
+</h3>
+
+<table>
+
+    <tr>
+        <th rowspan="2" ></th>
+        <th colspan="3">3階屋根＋天井</th>
+        <th colspan="3">3階床＋天井</th>
+        <th colspan="3">2階屋根＋天井</th>
+        <th colspan="3">2階床＋天井</th>
+        <th colspan="3">1階屋根＋天井</th>
+    </tr>
+
+    <tr>
+        <th>固定</th>
+        <th>積載</th>
+        <th>設計</th>
+
+        <th>固定</th>
+        <th>積載</th>
+        <th>設計</th>
+
+        <th>固定</th>
+        <th>積載</th>
+        <th>設計</th>
+
+        <th>固定</th>
+        <th>積載</th>
+        <th>設計</th>
+
+        <th>固定</th>
+        <th>積載</th>
+        <th>設計</th>
+    </tr>
+
+    <tr>
+        <td>長期</td>
+        <td><input id="gl3r" type="number"></td>
+        <td><input id="pl3r" type="number"></td>
+        <td><input id="gpl3r" class="result" readonly></td>
+
+        <td><input id="gl3f" type="number"></td>
+        <td><input id="pl3f" type="number"></td>
+        <td><input id="gpl3f" class="result" readonly></td>
+
+        <td><input id="gl2r" type="number"></td>
+        <td><input id="pl2r" type="number"></td>
+        <td><input id="gpl2r" class="result" readonly></td>
+
+        <td><input id="gl2f" type="number"></td>
+        <td><input id="pl2f" type="number"></td>
+        <td><input id="gpl2f" class="result" readonly></td>
+
+        <td><input id="gl1r" type="number"></td>
+        <td><input id="pl1r" type="number"></td>
+        <td><input id="gpl1r" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>中長期<br>(多雪区域)</td>
+        <td><input id="gml3r" type="number"></td>
+        <td><input id="pml3r" type="number"></td>
+        <td><input id="gpml3r" class="result" readonly></td>
+
+        <td><input id="gml3f" type="number"></td>
+        <td><input id="pml3f" type="number"></td>
+        <td><input id="gpml3f" class="result" readonly></td>
+
+        <td><input id="gml2r" type="number"></td>
+        <td><input id="pml2r" type="number"></td>
+        <td><input id="gpml2r" class="result" readonly></td>
+
+        <td><input id="gml2f" type="number"></td>
+        <td><input id="pml2f" type="number"></td>
+        <td><input id="gpml2f" class="result" readonly></td>
+
+        <td><input id="gml1r" type="number"></td>
+        <td><input id="pml1r" type="number"></td>
+        <td><input id="gpml1r" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>中短期<br>(積雪)</td>
+        <td><input id="gms3r" type="number"></td>
+        <td><input id="pms3r" type="number"></td>
+        <td><input id="gpms3r" class="result" readonly></td>
+
+        <td><input id="gms3f" type="number"></td>
+        <td><input id="pms3f" type="number"></td>
+        <td><input id="gpms3f" class="result" readonly></td>
+
+        <td><input id="gms2r" type="number"></td>
+        <td><input id="pms2r" type="number"></td>
+        <td><input id="gpms2r" class="result" readonly></td>
+
+        <td><input id="gms2f" type="number"></td>
+        <td><input id="pms2f" type="number"></td>
+        <td><input id="gpms2f" class="result" readonly></td>
+
+        <td><input id="gms1r" type="number"></td>
+        <td><input id="pms1r" type="number"></td>
+        <td><input id="gpms1r" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>短期</td>
+        <td><input id="gs3r" type="number"></td>
+        <td><input id="ps3r" type="number"></td>
+        <td><input id="gps3r" class="result" readonly></td>
+
+        <td><input id="gs3f" type="number"></td>
+        <td><input id="ps3f" type="number"></td>
+        <td><input id="gps3f" class="result" readonly></td>
+
+        <td><input id="gs2r" type="number"></td>
+        <td><input id="ps2r" type="number"></td>
+        <td><input id="gps2r" class="result" readonly></td>
+
+        <td><input id="gs2f" type="number"></td>
+        <td><input id="ps2f" type="number"></td>
+        <td><input id="gps2f" class="result" readonly></td>
+
+        <td><input id="gs1r" type="number"></td>
+        <td><input id="ps1r" type="number"></td>
+        <td><input id="gps1r" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>引抜き</td>
+        <td><input id="gv3r" type="number"></td>
+        <td><input id="pv3r" type="number"></td>
+        <td><input id="gpv3r" class="result" readonly></td>
+
+        <td><input id="gv3f" type="number"></td>
+        <td><input id="pv3f" type="number"></td>
+        <td><input id="gpv3f" class="result" readonly></td>
+
+        <td><input id="gv2r" type="number"></td>
+        <td><input id="pv2r" type="number"></td>
+        <td><input id="gpv2r" class="result" readonly></td>
+
+        <td><input id="gv2f" type="number"></td>
+        <td><input id="pv2f" type="number"></td>
+        <td><input id="gpv2f" class="result" readonly></td>
+
+        <td><input id="gv1r" type="number"></td>
+        <td><input id="pv1r" type="number"></td>
+        <td><input id="gpv1r" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td></td>
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+
+        <td  class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(N/m²)</td>
+    </tr>
+
+</table>
+
+</section>
+
+<section id="liveLoadSection">
+
+<h3>②床の積載荷重条件(室の種類、階数を選択)
+</h3>
+
+<select id="roomType">
+    <option value="">選択してください</option>
+    <option value="house">住宅等</option>
+    <option value="office">事務室</option>
+</select>
+
+<select id="buildingFloor">
+    <option value="1">1階建て</option>
+    <option value="2">2階建て</option>
+    <option value="3">3階建て</option>
+</select>
+
+</section>
+
+<section id="snowSection">
+
+<h3>③積雪荷重入力</h3>
+
+<table>
+
+<tr>
+    <td>地域区分</td>
+    <td>
+    <select id="snowArea">
+        <option value="">
+            選択してください
+        </option>
+        <option value="general">
+            一般地域
+        </option>
+        <option value="heavy">
+            多雪区域
+        </option>
+    </select>
+    </td>
+</tr>
+
+<tr>
+    <td>垂直積雪量(cm)</td>
+    <td>
+        <input id="snowDepth" type="number">
+    </td>
+</tr>
+
+<tr>
+    <td>雪の単位重量(N/m²/cm)</td>
+    <td>
+        <input id="snowUnit" type="number" value="20">
+    </td>
+</tr>
+
+<tr>
+    <td>屋根勾配β</td>
+    <td>
+        <input
+            id="roofSlope"
+            type="number"
+            min="0"
+            step="0.01">
+    </td>
+</tr>
+
+<tr>
+    <td>屋根形状係数μb</td>
+    <td>
+        <input
+            id="roofSnowCoef"
+            class="result"
+            readonly>
+    </td>
+</tr>
+
+<tr>
+    <td>設計積雪荷重(N/m²)</td>
+    <td>
+        <input
+            id="snowLoad"
+            class="result"
+            readonly>
+    </td>
+</tr>
+
+</table>
+
+<br>
+
+<button id="snowBtn">
+積雪荷重計算
+</button>
+
+<button id="applySnowBtn">
+積雪荷重反映
+</button>
+
+</section>
+
+<section id="roofFloorLoadSection">
+
+<h3>④設計荷重計算（固定荷重＋積載荷重+積雪荷重 → 設計荷重）</h3>
+
+<button id="LoadBtn">
+設計荷重計算
+</button>
+
+</section>
+
+<section id="wallLoadSection">
+
+<h3>⑤壁の単位長さ当たりの重量</h3>
+
+<table>
+
+    <tr>
+        <th colspan="3">3階外壁</th>
+
+        <th colspan="3">2階外壁</th>
+
+        <th colspan="3">1階外壁</th>
+    </tr>
+
+    <tr>
+        <th>固定</th>
+        <th>高さ</th>
+        <th>設計</th>
+
+        <th>固定</th>
+        <th>高さ</th>
+        <th>設計</th>
+
+        <th>固定</th>
+        <th>高さ</th>
+        <th>設計</th>
+    </tr>
+
+    <tr>
+
+        <td><input id="g3wo" type="number"></td>
+        <td><input id="h3wo" type="number"></td>
+        <td><input id="gh3wo" class="result" readonly></td>
+
+        <td><input id="g2wo" type="number"></td>
+        <td><input id="h2wo" type="number"></td>
+        <td><input id="gh2wo" class="result" readonly></td>
+
+        <td><input id="g1wo" type="number"></td>
+        <td><input id="h1wo" type="number"></td>
+        <td><input id="gh1wo" class="result" readonly></td>
+
+    </tr>
+
+    <tr>
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(m)</td>
+        <td class="unit">(N/m)</td>
+
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(m)</td>
+        <td class="unit">(N/m)</td>
+
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(m)</td>
+        <td class="unit">(N/m)</td>
+    </tr>
+
+    <tr>
+        <th colspan="3">3階内壁</th>
+
+        <th colspan="3">2階内壁</th>
+
+        <th colspan="3">1階内壁</th>
+    </tr>
+
+    <tr>
+        <th>固定</th>
+        <th>高さ</th>
+        <th>設計</th>
+
+        <th>固定</th>
+        <th>高さ</th>
+        <th>設計</th>
+
+        <th>固定</th>
+        <th>高さ</th>
+        <th>設計</th>
+    </tr>
+
+    <tr>
+
+        <td><input id="g3wi" type="number"></td>
+        <td><input id="h3wi" type="number"></td>
+        <td><input id="gh3wi" class="result" readonly></td>
+
+        <td><input id="g2wi" type="number"></td>
+        <td><input id="h2wi" type="number"></td>
+        <td><input id="gh2wi" class="result" readonly></td>
+
+        <td><input id="g1wi" type="number"></td>
+        <td><input id="h1wi" type="number"></td>
+        <td><input id="gh1wi" class="result" readonly></td>
+
+    </tr>
+
+    <tr>
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(m)</td>
+        <td class="unit">(N/m)</td>
+
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(m)</td>
+        <td class="unit">(N/m)</td>
+
+        <td class="unit">(N/m²)</td>
+        <td class="unit">(m)</td>
+        <td class="unit">(N/m)</td>
+    </tr>
+
+</table>
+
+<br>
+
+<button id="wallDeadLoadCopyBtn">
+3階の固定荷重コピー
+</button>
+
+<button id="wallHeightCopyBtn">
+3階の壁高さコピー
+</button>
+
+<button id="wallLoadBtn">
+壁荷重計算
+</button>
+
+</section>
+
+</div>
+
+<!-- tab3 -->
+<div id="tab3"
+     class="tabContent"
+     style="display:none;">
+
+<section id="holizontalForceTab">
+
+<h2>水平力データ</h2>
+
+<section id="WindPressure">
+
+<h3>
+①風圧力
+</h3>    
+
+<table>
+    <tr>
+        <td>地表面粗度区分</td>
+        <td>
+        <select id="roughnessClass">
+            <option value="">選択してください</option>
+            <option value="one">Ⅰ</option>
+            <option value="two">Ⅱ</option>
+            <option value="three">Ⅲ</option>
+            <option value="four">Ⅳ</option>
+        </select>
+        </td>
+     </tr>
+
+    <tr>
+        <td>Zb(m)</td>
+        <td><input id="Zb" class="result" readonly></td>
+        <td>Er</td>
+        <td><input id="Er" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>ZG(m)</td>
+        <td><input id="ZG" class="result" readonly></td>
+        <td>Gf</td>
+        <td><input id="Gf" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>α</td>
+        <td><input id="alfaW" class="result" readonly></td>
+        <td>V₀(m/s)</td>
+        <td><input id="V0" type="number"></td>
+    </tr>
+
+    <tr>
+        <td>最高高さ(m)</td>
+        <td><input id="maxHeight" type="number"></td>
+        <td>E</td>
+        <td><input id="E" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>軒高(m)</td>
+        <td><input id="eaveHeight" type="number"></td>
+        <td>速度圧q(N/m²)</td>
+        <td><input id="q" class="result" readonly></td>
+    </tr>
+
+</table>
+
+<br>
+
+<table>
+    <th colspan="2">地表面粗度区分について</th>
+    <tr>
+        <td>Ⅰ</td>
+        <td>極めて平坦で障害物がないものとして特定行政庁が規則で定める区域（海上や極めて視界が開けた平野など）</td>
+    </tr>
+
+    <tr>
+        <td>Ⅱ</td>
+        <td>海岸線・湖岸線から500m以内の地域、または障害物が散在する平坦な地域</td>
+    </tr>
+
+    <tr>
+        <td>Ⅲ</td>
+        <td>Ⅰ、Ⅱ、Ⅳ以外</td>
+    </tr>
+
+    <tr>
+        <td>Ⅳ</td>
+        <td>：都市化が極めて著しいものとして特定行政庁が規則で定める区域（高層ビルが密集する大都市の中心部など）</td>
+    </tr>
+</table>
+
+<!-- <br> -->
+
+<!-- <button id="velocityPressureBtn"> -->
+<!-- 速度圧計算 -->
+<!-- </button> -->
+
+<br>
+
+<table>
+    <tr>
+        <td>風向</td>
+        <td>
+        <select id="windDirection">
+            <option value="">選択してください</option>
+            <option value="beamDirection">梁間</option>
+            <option value="girderDirection">桁行</option>
+        </select>
+        </td>
+     </tr>
+
+    <tr>
+        <th colspan="2"></th>
+        <th>ΣCf</th>
+        <th>見付け面積(m²)</th>
+        <th>QWᵢ</th>
+        <th>ΣQWᵢ</th>
+    </tr>
+
+    <tr>
+        <td rowspan="2">3階 </td>
+        <td>屋根面</td>
+        <td><input id="sigmaCfr3" type="number"></td>
+        <td><input id="Ar3" type="number"></td>
+    </tr>
+    <tr>
+        <td>壁面</td>
+        <td><input id="sigmaCfw3" type="number"></td>
+        <td><input id="Aw3" type="number"></td>
+        <td><input id="QW3" class="result" readonly></td>
+        <td><input id="sigmaQW3" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td rowspan="2">2階 </td>
+        <td>屋根面</td>
+        <td><input id="sigmaCfr2" type="number"></td>
+        <td><input id="Ar2" type="number"></td>
+    </tr>
+    <tr>
+        <td>壁面</td>
+        <td><input id="sigmaCfw2" type="number"></td>
+        <td><input id="Aw2" type="number"></td>
+        <td><input id="QW2" class="result" readonly></td>
+        <td><input id="sigmaQW2" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td rowspan="2">1階 </td>
+        <td>屋根面</td>
+        <td><input id="sigmaCfr1" type="number"></td>
+        <td><input id="Ar1" type="number"></td>
+    </tr>
+    <tr>
+        <td>壁面</td>
+        <td><input id="sigmaCfw1" type="number"></td>
+        <td><input id="Aw1" type="number"></td>
+        <td><input id="QW1" class="result" readonly></td>
+        <td><input id="sigmaQW1" class="result" readonly></td>
+    </tr>
+
+</table>
+
+<br>
+
+<table>
+    <tr>
+        <td>屋根形状</td>
+        <td>
+        <select id="roofShape">
+            <option value="">選択してください</option>
+            <option value="gableRoof">切妻</option>
+            <option value="hippedRoof">寄棟</option>
+        </select>
+        </td>
+     </tr>
+
+
+</table>
+
+<br>
+
+<button id="windPressureBtn">
+風圧力計算
+</button>
+
+</section>
+
+<section id="earthquake">
+
+<h3>
+②地震力
+</h3>        
+
+<table>
+    <tr>
+        <th></th>
+        <th>3階</th>
+        <th>2階</th>
+        <th>1階</th>
+    </tr>
+
+    <tr>
+        <td>αᵢ</td>
+        <td><input id="alfaW3" class="result" readonly></td>
+        <td><input id="alfaW2" class="result" readonly></td>
+        <td><input id="alfaW1" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>T</td>
+        <td><input id="T" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>Z</td>
+        <td><input id="Z" type="number"></td>
+    </tr>
+
+    <tr>
+        <td>Rₜ</td>
+        <td><input id="Rt" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>Aᵢ</td>
+        <td><input id="Ae3" class="result" readonly></td>
+        <td><input id="Ae2" class="result" readonly></td>
+        <td><input id="Ae1" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>C₀</td>
+        <td><input id="C0" type="number"></td>
+    </tr>
+
+    <tr>
+        <td>Cᵢ</td>
+        <td><input id="Ce3" class="result" readonly></td>
+        <td><input id="Ce2" class="result" readonly></td>
+        <td><input id="Ce1" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>QEᵢ</td>
+        <td><input id="Qe3" class="result" readonly></td>
+        <td><input id="Qe2" class="result" readonly></td>
+        <td><input id="Qe1" class="result" readonly></td>
+    </tr>
+
+</table>
+
+<br>
+
+<table>
+    <tr>
+        <td>地盤種別</td>
+        <td>
+        <select id="groundType">
+            <option value="">選択してください</option>
+            <option value="Type1">第1種</option>
+            <option value="Type2">第2種</option>
+            <option value="Type3">第3種</option>
+        </select>
+        </td>
+
+     </tr>
+
+</table>
+
+<br>
+
+<button id="earthquakeForceBtn">
+地震力計算
+</button>
+
+</section>
+
+<section id="earthquakeWeight">
+
+<h3>
+⓷地震用重量
+</h3>        
+
+<table>
+
+    <tr>
+        <th>階</th>
+        <th>項目</th>
+        <th>単位重量(N/m²)</th>
+        <th>面積(m²)or長さ(m)</th>
+        <th>W₀</th>
+        <th>Wᵢ</th>
+        <th>ΣWᵢ</th>
+    </tr>
+
+    <tr>
+        <td rowspan="4">3階</td>
+        <td>屋根+天井</td>    
+        <td><input id="weightrc3" class="result" readonly></td>
+        <td><input id="arearc3" type="number"></td>
+        <td><input id="w0rc3" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>外壁（上部）</td>    
+        <td><input id="weightwou3" class="result" readonly></td>
+        <td><input id="lengthwou3" type="number"></td>
+        <td><input id="w0wou3" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>内壁（上部）</td>    
+        <td><input id="weightgwiu3" class="result" readonly></td>
+        <td><input id="lengthwiu3" type="number"></td>
+        <td><input id="w0wiu3" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>妻小壁</td>    
+        <td><input id="weightgw3" class="result" readonly></td>
+        <td><input id="lengthgw3" type="number"></td>
+        <td><input id="w0gw3" class="result" readonly></td>
+        <td><input id="W3" class="result" readonly></td>
+        <td><input id="sigmaW3" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td rowspan="7">2階</td>
+        <td>屋根+天井</td>    
+        <td><input id="weightrc2" class="result" readonly></td>
+        <td><input id="arearc2" type="number"></td>
+        <td><input id="w0rc2" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>床+天井</td>    
+        <td><input id="weightfc3" class="result" readonly></td>
+        <td><input id="areafc3" type="number"></td>
+        <td><input id="w0fc3" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>外壁（上階下部）</td>    
+        <td><input id="weightwod3" class="result" readonly></td>
+        <td><input id="lengthwod3" type="number"></td>
+        <td><input id="w0wod3" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>内壁（上階下部）</td>    
+        <td><input id="weightgwid3" class="result" readonly></td>
+        <td><input id="lengthwid3" type="number"></td>
+        <td><input id="w0wid3" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>妻小壁</td>    
+        <td><input id="weightgw2" class="result" readonly></td>
+        <td><input id="lengthgw2" type="number"></td>
+        <td><input id="w0gw2" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>外壁（上部）</td>    
+        <td><input id="weightwou2" class="result" readonly></td>
+        <td><input id="lengthwou2" type="number"></td>
+        <td><input id="w0wou2" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>内壁（上部）</td>    
+        <td><input id="weightgwiu2" class="result" readonly></td>
+        <td><input id="lengthwiu2" type="number"></td>
+        <td><input id="w0wiu2" class="result" readonly></td>
+        <td><input id="W2" class="result" readonly></td>
+        <td><input id="sigmaW2" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td rowspan="7">1階</td>
+        <td>屋根+天井</td>    
+        <td><input id="weightrc1" class="result" readonly></td>
+        <td><input id="arearc1" type="number"></td>
+        <td><input id="w0rc1" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>床+天井</td>    
+        <td><input id="weightfc2" class="result" readonly></td>
+        <td><input id="areafc2" type="number"></td>
+        <td><input id="w0fc2" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>外壁（上階下部）</td>    
+        <td><input id="weightwod2" class="result" readonly></td>
+        <td><input id="lengthwod2" type="number"></td>
+        <td><input id="w0wod2" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>内壁（上階下部）</td>    
+        <td><input id="weightgwid2" class="result" readonly></td>
+        <td><input id="lengthwid2" type="number"></td>
+        <td><input id="w0wid2" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>妻小壁</td>    
+        <td><input id="weightgw1" class="result" readonly></td>
+        <td><input id="lengthgw1" type="number"></td>
+        <td><input id="w0gw1" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>外壁（上部）</td>    
+        <td><input id="weightwou1" class="result" readonly></td>
+        <td><input id="lengthwou1" type="number"></td>
+        <td><input id="w0wou1" class="result" readonly></td>
+    </tr>
+
+    <tr>
+        <td>内壁（上部）</td>    
+        <td><input id="weightgwiu1" class="result" readonly></td>
+        <td><input id="lengthwiu1" type="number"></td>
+        <td><input id="w0wiu1" class="result" readonly></td>
+        <td><input id="W1" class="result" readonly></td>
+        <td><input id="sigmaW1" class="result" readonly></td>
+    </tr>
+
+</table>
+
+<br>
+
+<button id="weightInputBtn">
+単位重量入力
+</button>
+
+<button id="earthquakeWeightCalcBtn">
+地震用重量計算
+</button>
+
+</section>
+
+</div>
+
+<script>
+
+/*
+ID命名規則
+
+r   : roof（屋根）
+c   : ceialing（天井）
+f   : floor（床）
+
+wou : wall outer upper（外壁上部）
+wiu : wall inner upper（内壁上部）
+
+wod : wall outer lower（外壁下部）
+wid : wall inner lower（内壁下部）
+
+gw  : gable wall（妻小壁）
+
+末尾数字
+1 = 1階
+2 = 2階
+3 = 3階
+
+*/
+
+function showTab(tabId){
+
+    const tabs =
+        document.querySelectorAll(
+            ".tabContent"
+        );
+
+    tabs.forEach(tab => {
+        tab.style.display = "none";
+    });
+
+    document
+        .getElementById(tabId)
+        .style.display = "block";
+}
+
+//断面諸定数演算ボタン押下
+document
+    .getElementById("calcBtn")
+    .addEventListener("click", calculate);
+
+//1階データコピーボタン押下
+document
+    .getElementById("copyBtn")
+    .addEventListener("click", copyFloor1);
+
+//設計荷重計算ボタン押下
+document
+    .getElementById("LoadBtn")
+    .addEventListener("click", calcLoad);
+
+//室用途プルダウン選択
+document
+    .getElementById("roomType")
+    .addEventListener("change", setLiveLoad);
+
+//積雪荷重計算ボタン押下
+document
+    .getElementById("snowBtn")
+    .addEventListener("click", calcSnowLoad);
+
+//積雪荷重反映ボタン
+document
+    .getElementById("applySnowBtn")
+    .addEventListener("click", applySnowLoad);
+
+//壁荷重計算ボタン押下
+document
+    .getElementById("wallLoadBtn")
+    .addEventListener("click",calcWallLoad);    
+
+//3階固定荷重コピーボタン押下
+document
+    .getElementById("wallDeadLoadCopyBtn")
+    .addEventListener("click",copyWallDeadLoad);
+
+//3階壁高さコピーボタン押下
+document
+    .getElementById("wallHeightCopyBtn")
+    .addEventListener("click",copyWallHeight);
+
+//地表面粗度区分プルダウン選択
+document
+    .getElementById("roughnessClass")
+    .addEventListener("change",calcWindParameter);
+calcWindParameter();
+
+//風圧力計算ボタン押下
+document
+    .getElementById("windPressureBtn")
+    .addEventListener("click",calcSigmaQWi)
+
+// 断面諸定数の演算 
+function calculate(){
+
+    for(let floor = 1; floor <= 3; floor++){
+
+        const B = Number(document.getElementById(`b${floor}`).value);
+
+        const D = Number(document.getElementById(`d${floor}`).value);
+        
+        const lk = Number(document.getElementById(`lk${floor}`).value);
+
+        if(!B || !D || !lk){
+            continue;
+        }
+
+        const A = round(B * D);
+
+        const Z = round(B * D ** 2 / 6);
+
+        const I = round(B * D ** 3 / 12);
+
+        const si = round(Math.sqrt(I / A));
+
+        const lamda = round(lk / si * 100);
+
+        let eta;
+
+        if(lamda <= 30){
+            eta = 1;
+        }
+        else if(lamda > 100){
+            eta = round(3000 / lamda ** 2);
+        }
+        else{
+            eta = round(1.3 - 0.01 * lamda);
+        }
+    
+        document.getElementById(`a${floor}`).value = A;
+        document.getElementById(`z${floor}`).value = Z;
+        document.getElementById(`i${floor}`).value = I;
+        document.getElementById(`si${floor}`).value = si;
+        document.getElementById(`lamda${floor}`).value = lamda;
+        document.getElementById(`eta${floor}`).value = eta;
+
+    }
+
+}
+
+// 小数点以下2桁で四捨五入（100倍して丸めて100で割る） 
+function round(value){
+    return Math.round(value * 100) / 100;
+}
+
+// 1階データを2、3階にコピー 
+function copyFloor1(){
+
+    for(let floor = 2; floor <= 3; floor++){
+
+        document.getElementById(`b${floor}`).value =
+            document.getElementById("b1").value;
+
+        document.getElementById(`d${floor}`).value =
+            document.getElementById("d1").value;
+
+        document.getElementById(`lk${floor}`).value =
+            document.getElementById("lk1").value;
+    }
+
+}
+
+//固定荷重＋積載荷重 → 設計荷重
+function calcLoad(){
+
+    const cases = [
+        "l",
+        "ml",
+        "ms",
+        "s",
+        "v"
+    ];
+
+    const sections = [
+        "3r",
+        "3f",
+        "2r",
+        "2f",
+        "1r"
+    ];
+
+    const loadRows = [];
+
+    sections.forEach(section => {
+
+        cases.forEach(type => {
+
+            loadRows.push([
+                `g${type}${section}`,
+                `p${type}${section}`,
+                `gp${type}${section}`
+            ]);
+
+        });
+
+    });
+
+    loadRows.forEach(row => {
+        
+        const fixed =
+            Number(document.getElementById(row[0]).value);
+        
+        const live =
+            Number(document.getElementById(row[1]).value);
+        
+        document.getElementById(row[2]).value =
+            round(fixed + live);
+
+    });
+
+}
+
+//床の積載荷重入力
+function setLiveLoad(){
+
+    const loadTypes = [
+        "l",
+        "ml",
+        "ms",
+        "s"
+    ];
+
+    // 2階床・3階床をまとめて処理するときに使用
+    const floorSections = [
+        "2f",
+        "3f"
+    ];
+
+    const roomType =
+        document.getElementById("roomType").value;
+
+    const buildingFloor =
+        document.getElementById("buildingFloor").value;
+
+    if(roomType === "house"){
+
+        if(buildingFloor === "1"){
+
+            loadTypes.forEach(type => {
+
+                document.getElementById(`p${type}2f`).value = 0;
+
+                document.getElementById(`p${type}3f`).value = 0;
+
+            });
+
+            document.getElementById("pv2f").value = 0;
+            document.getElementById("pv3f").value = 0;
+
+        }
+
+        else if(buildingFloor === "2"){
+
+            loadTypes.forEach(type => {
+
+                document.getElementById(`p${type}2f`).value = 1300;
+                document.getElementById(`p${type}3f`).value = 0;
+        
+            });
+   
+            document.getElementById("pv2f").value = 600;
+            document.getElementById("pv3f").value = 0;
+
+        }
+    
+        else{
+
+            loadTypes.forEach(type => {
+
+            document.getElementById(`p${type}2f`).value = 1300;
+            document.getElementById(`p${type}3f`).value = 1300;
+
+        });
+
+        document.getElementById("pv2f").value = 600;
+        document.getElementById("pv3f").value = 600;
+
+        }
+
+    }
+
+    else if(roomType === "office"){
+
+        if(buildingFloor === "1"){
+
+            loadTypes.forEach(type => {
+
+                document.getElementById(`p${type}2f`).value = 0;
+
+                document.getElementById(`p${type}3f`).value = 0;
+
+            });
+
+            document.getElementById("pv2f").value = 0;
+            document.getElementById("pv3f").value = 0;
+
+        }
+
+        else if(buildingFloor === "2"){
+
+            loadTypes.forEach(type => {
+
+                document.getElementById(`p${type}2f`).value = 1800;
+                document.getElementById(`p${type}3f`).value = 0;
+        
+            });
+   
+            document.getElementById("pv2f").value = 800;
+            document.getElementById("pv3f").value = 0;
+
+        }
+    
+        else{
+
+            loadTypes.forEach(type => {
+
+            document.getElementById(`p${type}2f`).value = 1800;
+            document.getElementById(`p${type}3f`).value = 1800;
+
+        });
+
+        document.getElementById("pv2f").value = 800;
+        document.getElementById("pv3f").value = 800;
+
+        }
+    }
+
+}
+
+// 屋根勾配取得
+function getRoofSlope() {
+    return Number(
+        document.getElementById("roofSlope").value
+    ) || 0;
+}
+
+// 屋根角度Θ取得
+function getTheta(){
+    const beta = getRoofSlope();
+
+    const theta = 
+        Math.atan(beta) * 180 /Math.PI;
+
+   return theta;
+}
+
+//屋根形状係数の計算
+function calcRoofSnowCoef(){
+
+    const theta = getTheta();
+
+    let mu;
+
+    if(theta <= 60){
+
+        mu = round(
+            Math.sqrt(
+                Math.cos(
+                    1.5 * theta * Math.PI / 180
+                )
+            )
+        );
+
+    }
+    else{
+
+        mu = 0;
+
+    }
+
+    document.getElementById(
+        "roofSnowCoef"
+    ).value = mu;
+
+    return mu;
+
+}
+
+//積雪荷重の計算
+function calcSnowLoad(){
+
+    const snowArea =
+        document.getElementById("snowArea").value;
+
+    const snowDepth = 
+        Number(
+            document.getElementById("snowDepth").value
+        );
+    
+    const snowUnit =
+        Number(
+            document.getElementById("snowUnit").value
+        );
+
+    if (
+        snowArea === "general" &&
+        snowUnit < 20
+    ){
+        alert(
+            "一般地域は雪の単位重量20(N/m²/cm)以上入力してください"
+        );
+        return;
+    }
+
+    if (
+        snowArea === "heavy" &&
+        snowUnit < 30
+    ){
+        alert(
+            "多雪区域は単位重量30(N/m²/cm)以上入力してください"
+        );
+        return;
+    }
+
+    // μb計算
+    const mu =
+        calcRoofSnowCoef();
+
+    // 設計積雪荷重計算
+    const snowLoad =
+        Math.round(
+            snowDepth *
+            snowUnit *
+            mu *
+            100
+        ) / 100;
+
+    document.getElementById(
+        "snowLoad"
+    ).value = snowLoad;
+
+}
+
+//積雪荷重反映
+function applySnowLoad(){
+    
+    const snowLoad =
+        Number(
+            document.getElementById(
+                "snowLoad"
+            ).value
+        );
+
+    const snowArea =
+        document.getElementById(
+            "snowArea"
+        ).value;
+
+    const buildingFloor =
+        document.getElementById(
+            "buildingFloor"
+        ).value;
+
+    if(snowLoad ===0){
+        alert(
+            "積雪荷重を計算してから反映してください"
+        );
+        return;
+    }
+
+    //長期（長期・常時）
+    let longSnow = 0;
+
+    //中長期（長期・積雪時）
+    let mediumLongSnow = 0;
+
+    //中短期（短期・積雪時）
+    let mediumShortSnow = snowLoad;
+
+    //短期（短期・暴風・地震時）
+    let shortSnow = 0;
+
+    //引抜き（短期・暴風・地震時）
+    let upliftSnow = 0;
+
+    //多雪区域だけ変更
+    if(snowArea === "heavy"){
+
+        mediumLongSnow =
+            round(0.7 * snowLoad);
+
+        shortSnow =
+            round(0.35 * snowLoad);
+
+        upliftSnow =
+            round(0.35 * snowLoad);
+
+    }
+
+    if(buildingFloor === "1"){
+
+        document.getElementById("pl1r").value = longSnow;
+        document.getElementById("pml1r").value = mediumLongSnow;
+        document.getElementById("pms1r").value = mediumShortSnow;
+        document.getElementById("ps1r").value = shortSnow;
+        document.getElementById("pv1r").value = upliftSnow;
+
+    }
+
+    else if(buildingFloor === "2"){
+
+        document.getElementById("pl1r").value = longSnow;
+        document.getElementById("pml1r").value = mediumLongSnow;
+        document.getElementById("pms1r").value = mediumShortSnow;
+        document.getElementById("ps1r").value = shortSnow;
+        document.getElementById("pv1r").value = upliftSnow;
+        document.getElementById("pl2r").value = longSnow;
+        document.getElementById("pml2r").value = mediumLongSnow;
+        document.getElementById("pms2r").value = mediumShortSnow;
+        document.getElementById("ps2r").value = shortSnow;
+        document.getElementById("pv2r").value = upliftSnow;
+    
+    }
+
+    else{
+    
+        document.getElementById("pl1r").value = longSnow;
+        document.getElementById("pml1r").value = mediumLongSnow;
+        document.getElementById("pms1r").value = mediumShortSnow;
+        document.getElementById("ps1r").value = shortSnow;
+        document.getElementById("pv1r").value = upliftSnow;
+        document.getElementById("pl2r").value = longSnow;
+        document.getElementById("pml2r").value = mediumLongSnow;
+        document.getElementById("pms2r").value = mediumShortSnow;
+        document.getElementById("ps2r").value = shortSnow;
+        document.getElementById("pv2r").value = upliftSnow;
+        document.getElementById("pl3r").value = longSnow;
+        document.getElementById("pml3r").value = mediumLongSnow;
+        document.getElementById("pms3r").value = mediumShortSnow;
+        document.getElementById("ps3r").value = shortSnow;
+        document.getElementById("pv3r").value = upliftSnow;
+    
+    }
+    //設計荷重計算自動反映（固定荷重＋積載荷重 → 設計荷重）
+    calcLoad();
+
+    alert("反映完了");
+
+}
+
+//壁荷重計算用関数
+function calcOneWall(loadId,heightId,resultId){
+
+    const load =
+        Number(
+            document.getElementById(loadId).value
+        );
+
+    const height =
+        Number(
+            document.getElementById(heightId).value
+        );
+
+    document.getElementById(resultId).value =
+        round(load * height);
+
+}
+
+//壁荷重計算
+function calcWallLoad(){
+
+    calcOneWall(
+        "g3wo",
+        "h3wo",
+        "gh3wo"
+    );
+
+    calcOneWall(
+        "g2wo",
+        "h2wo",
+        "gh2wo"
+    );
+
+    calcOneWall(
+        "g1wo",
+        "h1wo",
+        "gh1wo"
+    );
+
+    calcOneWall(
+        "g3wi",
+        "h3wi",
+        "gh3wi"
+    );
+
+    calcOneWall(
+        "g2wi",
+        "h2wi",
+        "gh2wi"
+    );
+
+    calcOneWall(
+        "g1wi",
+        "h1wi",
+        "gh1wi"
+    );
+
+}
+
+//3階固定荷重コピー
+function copyWallDeadLoad(){
+
+    document.getElementById("g2wo").value =
+        document.getElementById("g3wo").value;
+
+    document.getElementById("g1wo").value =
+        document.getElementById("g3wo").value;
+
+    document.getElementById("g2wi").value =
+        document.getElementById("g3wi").value;
+
+    document.getElementById("g1wi").value =
+        document.getElementById("g3wi").value;
+
+}
+
+//3階壁高さコピー
+function copyWallHeight(){
+
+    document.getElementById("h2wo").value =
+        document.getElementById("h3wo").value;
+
+    document.getElementById("h1wo").value =
+        document.getElementById("h3wo").value;
+
+    document.getElementById("h2wi").value =
+        document.getElementById("h3wi").value;
+
+    document.getElementById("h1wi").value =
+        document.getElementById("h3wi").value;
+
+}
+
+//風圧力の変数自動入力
+function calcWindParameter(){
+
+    const roughnessClass =
+        document.getElementById("roughnessClass").value;
+    let Zb = 0;
+    let ZG = 0;
+    let alfaW = 0;
+
+    switch (roughnessClass){
+
+        case "one":
+            Zb = 5 ;
+            ZG = 250;
+            alfaW = 0.10;
+            break;
+
+        case "two":
+            Zb = 5 ;
+            ZG = 350;
+            alfaW = 0.15;
+            break;
+
+        case "three":
+            Zb = 5 ;
+            ZG = 450;
+            alfaW = 0.20;
+            break;
+
+        case "four":
+            Zb = 10 ;
+            ZG = 550;
+            alfaW = 0.27;
+            break;
+
+    }
+
+    document.getElementById("Zb").value = Zb;
+    document.getElementById("ZG").value = ZG;
+    document.getElementById("alfaW").value = alfaW;
+
+}
+
+//最高高さと軒高の平均値Hの計算
+function getH(){
+
+    const maxHeight =
+        Number(document.getElementById("maxHeight").value);
+
+    const eaveHeight =
+        Number(document.getElementById("eaveHeight").value);
+
+    return (maxHeight + eaveHeight) / 2;
+
+}
+
+//Erの計算
+function calcEr(){
+
+    const Zb =
+        Number(document.getElementById("Zb").value);
+
+    const ZG =
+        Number(document.getElementById("ZG").value);
+
+    const alfaW =
+        Number(document.getElementById("alfaW").value);
+    
+    const H = getH();
+
+    let Er = 0;
+
+    if (H <= Zb){
+
+        Er = 1.7 * (Zb / ZG) ** alfaW;
+
+    }else{
+
+        Er = 1.7 * (H / ZG) ** alfaW;
+    }
+
+    document.getElementById("Er").value = Er.toFixed(3);
+
+    calcE();
+
+}
+
+//ガスト影響係数Gfの計算
+function calcGf(){
+
+    const roughnessClass =
+        document.getElementById("roughnessClass").value;
+        
+    const H = getH();
+
+    let Gf10 = 0;
+    let Gf40 = 0;
+    let Gf = 0;
+
+    switch(roughnessClass){
+
+        case "one":
+            Gf10 = 2.0;
+            Gf40 = 1.8;
+            break;
+        
+        case "two":
+            Gf10 = 2.2;
+            Gf40 = 2.0;
+            break;
+
+        case "three":
+            Gf10 = 2.5;
+            Gf40 = 2.1;
+            break;
+
+        case "four":
+            Gf10 = 3.1;
+            Gf40 = 2.3;
+            break;
+    }
+
+    if (H <= 10){
+
+        Gf=Gf10
+    
+    }else if(H >= 40){
+
+        Gf=Gf40
+
+    }else{
+        Gf =
+            Gf10 + (Gf40 - Gf10) * (H - 10) / 30;
+    }
+
+    document.getElementById("Gf").value = Gf.toFixed(2);
+
+    calcE();
+
+}
+
+//Eの計算（屋根の高さ、地表面粗度区分に応じて定められる数値）
+function calcE(){
+
+    const Er =
+        Number(document.getElementById("Er").value);
+
+    const Gf =
+        Number(document.getElementById("Gf").value);
+
+    const E = Er ** 2 * Gf;
+
+    document.getElementById("E").value =
+        E.toFixed(3);
+
+    calcq();
+
+}
+
+//速度圧qの計算
+function calcq(){
+
+    const E =
+        Number(document.getElementById("E").value);
+
+    const V0 =
+        Number(document.getElementById("V0").value);
+    
+    const q = 0.6 * E * V0 ** 2;
+
+    document.getElementById("q").value =
+        q.toFixed(2);
+
+    return q;
+}
+
+// 風力係数Cfの計算
+function calcWindCf(){
+
+    const theta = getTheta();
+
+    if(isNaN(theta)){
+        alert(
+            "屋根勾配を入力してください。"
+        );
+        return;
+    }
+
+    // Θをコンソールで確認
+    console.log("theta=", theta);
+
+    // 外圧係数（正・負）
+    let Cpep;
+    let Cpem;
+
+    // 風上（正）
+    let Cfup1;
+    let Cfup2;
+
+    // 風上（負）
+    let Cfum1;
+    let Cfum2;
+
+    // 風下（正）
+    let Cfdp1;
+    let Cfdp2;
+
+    // 風下（負）
+    let Cfdm1;
+    let Cfdm2;
+
+    // ΣCf（正）
+    let sigmaCfp1;
+    let sigmaCfp2;
+
+    // ΣCf（負）
+    let sigmaCfm1;
+    let sigmaCfm2;
+
+    // ΣCf（最大値）
+    let sigmaCf;
+
+    //屋根面Cf
+    let sigmaCfr1;
+    let sigmaCfr2;
+    let sigmaCfr3;
+
+    //壁面Cf
+    let sigmaCfw1;
+    let sigmaCfw2;
+    let sigmaCfw3;
+
+/*風力係数関係メモ
+    Cpep : 勾配屋根の風上側外圧係数（正）
+    Cpem : 勾配屋根の風上側外圧係数（負）
+    
+    ※1 勾配屋根の風下側外圧係数は-0.5
+    ※2 風上壁面の外圧係数 Cpeu=0.8kz だが、低層建築物としてkz=1.0とみなす
+    　　風下壁面の外圧係数 Cped=-0.4
+    
+    Cfup : 風上（正）
+    Cfum : 風上（負）
+    Cfdp : 風下（正）
+    Cfdm : 風下（負）
+
+    ここで添え字は下記を表す
+    u : 風上
+    d : 風下
+    p : 正
+    m : 負
+
+    ※3 内圧係数Cpiは閉鎖型とし、0 及び -0.2 の2パターンを用いて計算する。
+    Cfup,Cfum,Cfdp,Cfdmの末尾番号
+    1 : Cpi = 0
+    2 : Cpi = - 0.2
+    
+    ※4 風力係数Cfの計算は下記のとおり
+    勾配屋根の風上：4パターンから最大値（Cpe 正・負 ×　Cpi 2パターンの合計4パターン）
+    勾配屋根の風下：2パターンから最大値（Cpi 2パターン）
+    壁面：下記の風上・風下の圧力差で算定することとし、両者とも1.2となるため、1.2を採用する。
+        壁面の風上 : 0.8 と 1.0（Cpi 2パターン）
+        壁面の風下 : -0.4 と -0.2（Cpi 2パターン）
+*/
+
+    if (theta < 10){
+
+        Cpep = 0;
+        Cpem = -1;
+
+    }else if((theta >= 10) && (theta < 30)){
+
+        Cpep = 0.2 / 20 * (theta - 10);
+        Cpem = 0.7 / 20 * (theta - 10) - 1;
+
+    }else if ((theta >= 30) && (theta <45)){
+
+        Cpep = 0.2 / 15 * (theta -30) + 0.2;
+        Cpem = 0.3 / 15 * (theta -30) - 0.3;
+
+    }else if((theta >= 45) && (theta <90)){
+
+        Cpep = 0.4 /45 * (theta -45) + 0.4;
+        Cpem = 0;
+
+    }else if (theta >= 90){
+
+        Cpep = 0.8;
+        Cpem = 0;
+
+    }
+
+
+    // 風上Cf（正）
+    Cfup1 = Cpep;
+    Cfup2 = Cpep - (-0.2);
+    // 風上Cf（負）
+    Cfum1 = Cpem;
+    Cfum2 = Cpem - (-0.2);
+
+    // 風下Cf（正）
+    Cfdp1 = - 0.5;
+    Cfdp2 = - 0.3;
+    // 風下Cf（負）
+    Cfdm1 = - 0.5;
+    Cfdm2 = - 0.3;
+
+    // 正の風力係数
+    sigmaCfp1 = Cfup1 - Cfdp1;
+    sigmaCfp2 = Cfup2 - Cfdp2;
+    // 負の風力係数    
+    sigmaCfm1 = Cfum1 - Cfdm1;
+    sigmaCfm2 = Cfum2 - Cfdm2;
+
+    // 勾配屋根 ΣCfの最大値
+    sigmaCf = Math.max(
+        Math.abs(sigmaCfp1),
+        Math.abs(sigmaCfp2),
+        Math.abs(sigmaCfm1),
+        Math.abs(sigmaCfm2)
+    );
+
+    const windDirection = 
+        document.getElementById("windDirection").value;
+    
+    const roofShape = 
+        document.getElementById("roofShape").value;
+    
+    if (roofShape === "gableRoof"){
+        if (windDirection === "beamDirection"){
+
+            sigmaCfr3 = sigmaCf;
+            sigmaCfr2 = sigmaCf;
+            sigmaCfr1 = sigmaCf;
+
+        }else if (windDirection === "girderDirection"){
+
+            sigmaCfr3 = 1.2;
+            sigmaCfr2 = 1.2;
+            sigmaCfr1 = 1.2;
+
+        }else{
+            alert(
+                "風向を選択してください。"
+            )
+        }
+    }else if(roofShape === "hippedRoof"){
+
+            sigmaCfr3 = sigmaCf;
+            sigmaCfr2 = sigmaCf;
+            sigmaCfr1 = sigmaCf;
+
+    }else{
+        alert(
+            "屋根形状を選択してください。"
+        )
+    }
+
+    sigmaCfw3 = 1.2;
+    sigmaCfw2 = 1.2;
+    sigmaCfw1 = 1.2;
+
+    // 画面へ出力
+    document.getElementById("sigmaCfr1").value = sigmaCfr1;
+    document.getElementById("sigmaCfr2").value = sigmaCfr2;
+    document.getElementById("sigmaCfr3").value = sigmaCfr3;
+
+    document.getElementById("sigmaCfw1").value = sigmaCfw1;
+    document.getElementById("sigmaCfw2").value = sigmaCfw2;
+    document.getElementById("sigmaCfw3").value = sigmaCfw3;
+
+    // 戻り値として返す
+    return {
+        sigmaCfr1,
+        sigmaCfr2,
+        sigmaCfr3,
+        sigmaCfw1,
+        sigmaCfw2,
+        sigmaCfw3,
+        sigmaCf
+    };
+}
+
+//風圧力ΣQ計算
+function calcSigmaQWi(){
+    //速度圧
+    const q = calcq();
+
+    //風力係数
+    const Cf = calcWindCf();
+
+    // 屋根面積
+    const Ar3 =
+        Number(
+            document.getElementById("Ar3").value
+        );
+    const Ar2 =
+        Number(
+            document.getElementById("Ar2").value
+        );
+    const Ar1 =
+        Number(
+            document.getElementById("Ar1").value
+        );
+
+    //壁面積
+    const Aw3 =
+        Number(
+            document.getElementById("Aw3").value
+        );
+    const Aw2 =
+        Number(
+            document.getElementById("Aw2").value
+        );
+    const Aw1 =
+        Number(
+            document.getElementById("Aw1").value
+        );
+
+    //各階屋根面の風圧力
+    const Wr3 =
+        Cf.sigmaCfr3 * Ar3 * q;
+    const Wr2 =
+        Cf.sigmaCfr2 * Ar2 * q;
+    const Wr1 =
+        Cf.sigmaCfr1 * Ar1 * q;
+
+    //各階壁面の風圧力
+    const Ww3 =
+        Cf.sigmaCfw3 * Aw3 * q;
+    const Ww2 =
+        Cf.sigmaCfw2 * Aw2 * q;
+    const Ww1 =
+        Cf.sigmaCfw1 * Aw1 * q;
+
+    //各階風圧力Q
+    const QW3 = Wr3 + Ww3;
+    const QW2 = Wr2 + Ww2;
+    const QW1 = Wr1 + Ww1;
+
+    //各階風圧力ΣQ
+    const sigmaQW3 = QW3;
+    const sigmaQW2 = QW3 + QW2;
+    const sigmaQW1 = QW3 + QW2 + QW1;
+    
+    // 画面へ出力
+    document.getElementById("QW3").value =
+        QW3.toFixed(2);
+
+    document.getElementById("QW2").value =
+        QW2.toFixed(2);
+
+    document.getElementById("QW1").value =
+        QW1.toFixed(2);
+
+    document.getElementById("sigmaQW3").value =
+        sigmaQW3.toFixed(2);
+
+    document.getElementById("sigmaQW2").value =
+        sigmaQW2.toFixed(2);
+
+    document.getElementById("sigmaQW1").value =
+        sigmaQW1.toFixed(2);
+
+}
+
+//イベント登録
+
+document
+    .getElementById("roughnessClass")
+    .addEventListener("change", calcWindParameter);
+
+document
+    .getElementById("roughnessClass")
+    .addEventListener("change", calcEr);
+
+document
+    .getElementById("roughnessClass")
+    .addEventListener("change", calcGf);
+
+document
+    .getElementById("maxHeight")
+    .addEventListener("input", calcEr);
+
+document
+    .getElementById("maxHeight")
+    .addEventListener("input", calcGf);
+
+document
+    .getElementById("eaveHeight")
+    .addEventListener("input", calcEr);
+
+document
+    .getElementById("eaveHeight")
+    .addEventListener("input", calcGf);
+
+document
+    .getElementById("V0")
+    .addEventListener("input", calcq);
+
+</script>
+
+</body>
+</html>
+
 
